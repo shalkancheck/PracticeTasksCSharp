@@ -2,132 +2,142 @@
 {
     class Program
     {
-        static readonly char[] vowels = { 'a', 'e', 'i', 'o', 'u', 'y' };
-
-        static void Main(string[] args)
+        static void Main()
         {
-            Console.WriteLine("Введите строку:");
-            string input = Console.ReadLine() ?? string.Empty;
-
-            // Проверяем, что строка содержит только буквы a-z
-            string invalidChars = GetInvalidCharacters(input);
-            if (invalidChars.Length > 0)
+            Console.Write("Введите строку: ");
+            string userInput = Console.ReadLine();
+            Console.WriteLine("Выберите алгоритм сортировки:");
+            Console.WriteLine("1. Быстрая сортировка (Quicksort)");
+            Console.WriteLine("2. Сортировка деревом (Tree sort)");
+            int sortChoice;
+            while (!int.TryParse(Console.ReadLine(), out sortChoice) || (sortChoice != 1 && sortChoice != 2))
             {
-                Console.WriteLine($"Сообщение об ошибке с информацией: неподходящие символы: {invalidChars}");
-                return;
+                Console.WriteLine("Пожалуйста, выберите 1 или 2:");
             }
 
-            string processedString = ProcessString(input);
-            Console.WriteLine($"Обработанная строка: {processedString}");
-
-            // Статистика по символам
-            string charCountInfo = GetCharacterCountInfo(processedString);
-            Console.WriteLine($"Информация о том, сколько раз входил в обработанную строку каждый символ: {charCountInfo}");
-
-            // Поиск подстроки, начинающейся и заканчивающейся на гласную
-            string longestVowelSubstring = GetLongestVowelSubstring(processedString);
-            Console.WriteLine($"Самая длинная подстрока начинающаяся и заканчивающаяся на гласную: {longestVowelSubstring}");
-
-            // Выбор алгоритма сортировки
-            Console.WriteLine("Выберите алгоритм сортировки (1 - Quicksort, 2 - Tree Sort):");
-            string choice = Console.ReadLine();
-            string sortedString;
-
-            if (choice == "1")
+            var result = ProcessString(userInput, sortChoice);
+            if (result.error != null)
             {
-                sortedString = QuickSort(processedString);
-            }
-            else if (choice == "2")
-            {
-                sortedString = TreeSort(processedString);
+                Console.WriteLine(result.error);
             }
             else
             {
-                Console.WriteLine("Неверный выбор, используется Quicksort по умолчанию.");
-                sortedString = QuickSort(processedString);
+                Console.WriteLine($"1. Обработанная строка: {result.processedString}");
+                Console.WriteLine("2. Количество символов:");
+                foreach (var pair in result.charCount.OrderBy(p => p.Key))
+                {
+                    Console.WriteLine($"   '{pair.Key}': {pair.Value}");
+                }
+                Console.WriteLine($"3. Самая длинная подстрока между гласными: {result.longestVowelSubstring}");
+                Console.WriteLine($"4. Отсортированная строка ({result.sortAlgorithm}): {result.sortedString}");
             }
-
-            Console.WriteLine($"Отсортированная обработанная строка: {sortedString}");
         }
 
-        static string ProcessString(string input)
+        static (string processedString,
+                Dictionary<char, int> charCount,
+                string longestVowelSubstring,
+                string sortedString,
+                string sortAlgorithm,
+                string error)
+            ProcessString(string input, int sortChoice)
         {
+            // Проверка на допустимые символы (Задание 2)
+            var invalidChars = new HashSet<char>();
+            foreach (char c in input)
+            {
+                if (c < 'a' || c > 'z')
+                {
+                    invalidChars.Add(c);
+                }
+            }
+            if (invalidChars.Count > 0)
+            {
+                string invalidCharsStr = string.Join(", ", invalidChars.OrderBy(c => c));
+                return (null, null, null, null, null, $"Ошибка: в строке найдены неподходящие символы - {invalidCharsStr}");
+            }
+
+            // Обработка строки (Задание 1)
+            string processedString;
             if (input.Length % 2 == 0)
             {
                 int halfLength = input.Length / 2;
-                string firstHalf = input.Substring(0, halfLength);
-                string secondHalf = input.Substring(halfLength);
-
-                char[] firstArray = firstHalf.ToCharArray();
-                Array.Reverse(firstArray);
-                char[] secondArray = secondHalf.ToCharArray();
-                Array.Reverse(secondArray);
-
-                return new string(firstArray) + new string(secondArray);
+                string firstHalf = new string(input.Substring(0, halfLength).Reverse().ToArray());
+                string secondHalf = new string(input.Substring(halfLength).Reverse().ToArray());
+                processedString = firstHalf + secondHalf;
             }
             else
             {
-                char[] array = input.ToCharArray();
-                Array.Reverse(array);
-                return new string(array) + input;
+                string reversed = new string(input.Reverse().ToArray());
+                processedString = reversed + input;
             }
-        }
 
-        static string GetInvalidCharacters(string input)
-        {
-            var invalidChars = input.Where(c => !char.IsLetter(c) || !char.IsLower(c))
-                                   .Distinct()
-                                   .ToArray();
-            return invalidChars.Length > 0 ? string.Join(", ", invalidChars) : string.Empty;
-        }
-
-        static string GetCharacterCountInfo(string input)
-        {
-            var charCounts = input.GroupBy(c => c)
-                                 .Select(g => $"{g.Key}: {g.Count()}")
-                                 .ToArray();
-            return string.Join(", ", charCounts);
-        }
-
-        static string GetLongestVowelSubstring(string input)
-        {
-            string longestSubstring = string.Empty;
-
-            for (int i = 0; i < input.Length; i++)
+            // Подсчёт символов (Задание 3)
+            var charFrequencies = new Dictionary<char, int>();
+            foreach (char c in processedString)
             {
-                if (!vowels.Contains(input[i])) continue;
+                charFrequencies[c] = charFrequencies.ContainsKey(c) ? charFrequencies[c] + 1 : 1;
+            }
 
-                for (int j = input.Length - 1; j >= i; j--)
+            // Поиск самой длинной подстроки между гласными (Задание 4)
+            string vowelSubstring = FindLongestVowelSubstring(processedString);
+
+            // Сортировка строки (Задание 5)
+            string sortedResult;
+            string algorithmName;
+            if (sortChoice == 1)
+            {
+                sortedResult = QuickSort(processedString);
+                algorithmName = "Quicksort";
+            }
+            else
+            {
+                sortedResult = TreeSort(processedString);
+                algorithmName = "Tree sort";
+            }
+
+            return (processedString, charFrequencies, vowelSubstring, sortedResult, algorithmName, null);
+        }
+
+        static string FindLongestVowelSubstring(string input)
+        {
+            var vowels = new HashSet<char> { 'a', 'e', 'i', 'o', 'u', 'y' };
+            string longestMatch = string.Empty;
+
+            for (int start = 0; start < input.Length; start++)
+            {
+                if (!vowels.Contains(input[start])) continue;
+
+                for (int end = input.Length - 1; end >= start; end--)
                 {
-                    if (!vowels.Contains(input[j])) continue;
+                    if (!vowels.Contains(input[end])) continue;
 
-                    string substring = input.Substring(i, j - i + 1);
-                    if (substring.Length > longestSubstring.Length)
+                    string currentSubstring = input.Substring(start, end - start + 1);
+                    if (currentSubstring.Length > longestMatch.Length)
                     {
-                        longestSubstring = substring;
+                        longestMatch = currentSubstring;
                     }
                     break;
                 }
             }
 
-            return longestSubstring.Length > 0 ? longestSubstring : "Нет подходящей подстроки";
+            return longestMatch.Length > 0 ? longestMatch : "Не найдено";
         }
 
-        // Quicksort
+        // Быстрая сортировка (Quicksort)
         static string QuickSort(string input)
         {
-            char[] array = input.ToCharArray();
-            QuickSort(array, 0, array.Length - 1);
-            return new string(array);
+            char[] charArray = input.ToCharArray();
+            QuickSortImplementation(charArray, 0, charArray.Length - 1);
+            return new string(charArray);
         }
 
-        static void QuickSort(char[] array, int low, int high)
+        static void QuickSortImplementation(char[] array, int low, int high)
         {
             if (low < high)
             {
-                int pi = Partition(array, low, high);
-                QuickSort(array, low, pi - 1);
-                QuickSort(array, pi + 1, high);
+                int pivotIndex = Partition(array, low, high);
+                QuickSortImplementation(array, low, pivotIndex - 1);
+                QuickSortImplementation(array, pivotIndex + 1, high);
             }
         }
 
@@ -149,17 +159,16 @@
             return i + 1;
         }
 
-        // Tree Sort
+        // Сортировка деревом (Tree Sort)
         static string TreeSort(string input)
         {
-            var tree = new BinarySearchTree();
+            var bst = new BinarySearchTree();
             foreach (char c in input)
             {
-                tree.Insert(c);
+                bst.Insert(c);
             }
 
-            // Получаем отсортированный список с учётом повторений
-            var sortedList = tree.GetSortedList();
+            var sortedList = bst.GetSortedCharacters();
             return new string(sortedList.ToArray());
         }
     }
@@ -169,13 +178,13 @@
         class Node
         {
             public char Value;
-            public int Count; // Для учёта повторяющихся символов
+            public int Count; // Для учёта повторений
             public Node Left, Right;
 
             public Node(char value)
             {
                 Value = value;
-                Count = 1; // Начальное количество = 1
+                Count = 1;
                 Left = Right = null;
             }
         }
@@ -189,50 +198,49 @@
 
         public void Insert(char value)
         {
-            root = InsertRec(root, value);
+            root = InsertRecursive(root, value);
         }
 
-        private Node InsertRec(Node root, char value)
+        private Node InsertRecursive(Node node, char value)
         {
-            if (root == null)
+            if (node == null)
             {
                 return new Node(value);
             }
 
-            if (value == root.Value)
+            if (value == node.Value)
             {
-                root.Count++; // Увеличиваем счётчик, если символ уже есть
+                node.Count++;
             }
-            else if (value < root.Value)
+            else if (value < node.Value)
             {
-                root.Left = InsertRec(root.Left, value);
+                node.Left = InsertRecursive(node.Left, value);
             }
             else
             {
-                root.Right = InsertRec(root.Right, value);
+                node.Right = InsertRecursive(node.Right, value);
             }
 
-            return root;
+            return node;
         }
 
-        public List<char> GetSortedList()
+        public List<char> GetSortedCharacters()
         {
             var result = new List<char>();
-            InOrderTraversalRec(root, result);
+            InOrderTraversal(root, result);
             return result;
         }
 
-        private void InOrderTraversalRec(Node root, List<char> result)
+        private void InOrderTraversal(Node node, List<char> result)
         {
-            if (root != null)
+            if (node != null)
             {
-                InOrderTraversalRec(root.Left, result);
-                // Добавляем символ столько раз, сколько он встречается
-                for (int i = 0; i < root.Count; i++)
+                InOrderTraversal(node.Left, result);
+                for (int i = 0; i < node.Count; i++)
                 {
-                    result.Add(root.Value);
+                    result.Add(node.Value);
                 }
-                InOrderTraversalRec(root.Right, result);
+                InOrderTraversal(node.Right, result);
             }
         }
     }
