@@ -15,8 +15,12 @@
             }
             else
             {
-                string result = ProcessString(input);
-                Console.WriteLine($"Обработанная строка: {result}");
+                string processedString = ProcessString(input);
+                Console.WriteLine($"Обработанная строка: {processedString}");
+
+                // Выводим статистику по символам
+                string charCountInfo = GetCharacterCountInfo(processedString);
+                Console.WriteLine($"Информация о том, сколько раз входил в обработанную строку каждый символ: {charCountInfo}");
             }
         }
 
@@ -46,12 +50,20 @@
 
         static string GetInvalidCharacters(string input)
         {
-            // Находим все символы, которые не входят в a-z
+            // Проверка из Задачи 2: только a-z
             var invalidChars = input.Where(c => !char.IsLetter(c) || !char.IsLower(c))
                                    .Distinct()
                                    .ToArray();
-            // Преобразуем в строку с запятыми
             return invalidChars.Length > 0 ? string.Join(", ", invalidChars) : string.Empty;
+        }
+
+        static string GetCharacterCountInfo(string input)
+        {
+            // Подсчитываем количество каждого символа в обработанной строке
+            var charCounts = input.GroupBy(c => c)
+                                 .Select(g => $"{g.Key}: {g.Count()}")
+                                 .ToArray();
+            return string.Join(", ", charCounts);
         }
     }
 }
