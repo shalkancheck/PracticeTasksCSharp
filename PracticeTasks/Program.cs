@@ -1,4 +1,4 @@
-﻿namespace PracticeTasks
+namespace PracticeTasks
 {
     class Program
     {
