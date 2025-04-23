@@ -178,7 +178,7 @@
         class Node
         {
             public char Value;
-            public int Count; // Для учёта повторений
+            public int Count;  // Для учёта повторений
             public Node Left, Right;
 
             public Node(char value)
