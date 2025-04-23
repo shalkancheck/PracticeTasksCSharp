@@ -1,8 +1,18 @@
-﻿namespace PracticeTasks
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Net.Http;
+using System.Text.Json;
+using System.Threading.Tasks;
+
+namespace PracticeTasks
 {
     class Program
     {
-        static void Main()
+        private static readonly HttpClient httpClient = new HttpClient();
+        private static readonly Random randomGenerator = new Random();
+
+        static async Task Main()
         {
             Console.Write("Введите строку: ");
             string userInput = Console.ReadLine();
@@ -15,7 +25,7 @@
                 Console.WriteLine("Пожалуйста, выберите 1 или 2:");
             }
 
-            var result = ProcessString(userInput, sortChoice);
+            var result = await ProcessStringAsync(userInput, sortChoice);
             if (result.error != null)
             {
                 Console.WriteLine(result.error);
@@ -30,16 +40,20 @@
                 }
                 Console.WriteLine($"3. Самая длинная подстрока между гласными: {result.longestVowelSubstring}");
                 Console.WriteLine($"4. Отсортированная строка ({result.sortAlgorithm}): {result.sortedString}");
+                Console.WriteLine($"5. Урезанная строка: {result.trimmedString} (удалён символ '{result.removedChar}' на позиции {result.removedIndex})");
             }
         }
 
-        static (string processedString,
-                Dictionary<char, int> charCount,
-                string longestVowelSubstring,
-                string sortedString,
-                string sortAlgorithm,
-                string error)
-            ProcessString(string input, int sortChoice)
+        static async Task<(string processedString,
+                           Dictionary<char, int> charCount,
+                           string longestVowelSubstring,
+                           string sortedString,
+                           string sortAlgorithm,
+                           string trimmedString,
+                           char removedChar,
+                           int removedIndex,
+                           string error)>
+            ProcessStringAsync(string input, int sortChoice)
         {
             // Проверка на допустимые символы (Задание 2)
             var invalidChars = new HashSet<char>();
@@ -53,7 +67,7 @@
             if (invalidChars.Count > 0)
             {
                 string invalidCharsStr = string.Join(", ", invalidChars.OrderBy(c => c));
-                return (null, null, null, null, null, $"Ошибка: в строке найдены неподходящие символы - {invalidCharsStr}");
+                return (null, null, null, null, null, null, '\0', -1, $"Ошибка: в строке найдены неподходящие символы - {invalidCharsStr}");
             }
 
             // Обработка строки (Задание 1)
@@ -95,7 +109,12 @@
                 algorithmName = "Tree sort";
             }
 
-            return (processedString, charFrequencies, vowelSubstring, sortedResult, algorithmName, null);
+            // Удаление случайного символа (Задание 6)
+            int randomIndex = await GetRandomIndexAsync(processedString.Length);
+            char removedChar = processedString[randomIndex];
+            string trimmedString = processedString.Remove(randomIndex, 1);
+
+            return (processedString, charFrequencies, vowelSubstring, sortedResult, algorithmName, trimmedString, removedChar, randomIndex, null);
         }
 
         static string FindLongestVowelSubstring(string input)
@@ -171,6 +190,31 @@
             var sortedList = bst.GetSortedCharacters();
             return new string(sortedList.ToArray());
         }
+
+        // Получение случайного индекса через API или локально
+        static async Task<int> GetRandomIndexAsync(int maxValue)
+        {
+            if (maxValue <= 1) return 0; // Если строка слишком короткая, удаляем 0-й символ
+
+            try
+            {
+                string apiUrl = $"http://www.randomnumberapi.com/api/v1.0/random?min=0&max={maxValue - 1}&count=1";
+                HttpResponseMessage response = await httpClient.GetAsync(apiUrl);
+                response.EnsureSuccessStatusCode();
+                string jsonResponse = await response.Content.ReadAsStringAsync();
+                var numbers = JsonSerializer.Deserialize<int[]>(jsonResponse);
+                return numbers?.FirstOrDefault() ?? GetLocalRandomIndex(maxValue);
+            }
+            catch
+            {
+                return GetLocalRandomIndex(maxValue);
+            }
+        }
+
+        static int GetLocalRandomIndex(int maxValue)
+        {
+            return randomGenerator.Next(0, maxValue);
+        }
     }
 
     class BinarySearchTree
@@ -178,7 +222,7 @@
         class Node
         {
             public char Value;
-            public int Count;  // Для учёта повторений
+            public int Count;
             public Node Left, Right;
 
             public Node(char value)
